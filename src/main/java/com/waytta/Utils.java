@@ -24,8 +24,8 @@ public class Utils {
         String server = "";
         JSONObject httpResponse = launcher.getChannel().call(new HttpCallable(servername + "/login", auth, null));
         server = httpResponse.getString("server");
-        JSONArray returnArray = httpResponse.getJSONArray("return");
-        for (Object o : returnArray) {
+        JSONArray checkArray = httpResponse.getJSONArray("return");
+        for (Object o : checkArray) {
             JSONObject line = (JSONObject) o;
             // This token will be used for all subsequent connections
             token = line.getString("token");
@@ -57,41 +57,50 @@ public class Utils {
         return paramer;
     }
 
-    public static boolean validateFunctionCall(JSONArray returnArray) {
+    public static boolean validateFunctionCall(JSONArray validateArray) {
         boolean result = true;
+        System.out.println("validating...");
 
         // Salt's /hook url returns non standard response. Assume this response
         // is valid
         JSONArray successHook = JSONArray.fromObject("[{\"Success\": True}]");
-        if (returnArray.equals(successHook)) {
+        if (validateArray.equals(successHook)) {
             return true;
         }
 
         try {
-            if (returnArray.get(0).toString().contains("TypeError")) {
+            if (validateArray.get(0).toString().contains("TypeError")) {
                 return false;
-            } else if (returnArray.getJSONObject(0).has("Error")) {
+            } else if (validateArray.getJSONObject(0).has("Error")) {
                 // detect [{"Error": ...
                 return false;
             }
         } catch (Exception e) {
         }
 
+        System.out.println("at 1");
         try {
-            if (returnArray.getJSONArray(0).isArray()) {
+            if (validateArray.getJSONArray(0).isArray()) {
                 // detect runner manage.present result [["minion1", "minion2"...
                 return true;
             }
         } catch (Exception e) {
         }
 
-        for (Object o : returnArray) {
+        System.out.println("at 2");
+        for (Object o : validateArray) {
+            System.out.println("at 2a");
             if (o instanceof Boolean) {
+                System.out.println("at 2.2");
                 result = (Boolean) o;
             } else if (o instanceof String) {
+                System.out.println("at 2.3");
                 result = false;
             } else {
+                System.out.println("at 2.b");
+                System.out.println(o.toString());
                 JSONObject possibleMinion = JSONObject.fromObject(o);
+                System.out.println("at 2.1");
                 for (Object name : possibleMinion.names()) {
                     Object field = possibleMinion.get(name.toString());
 
@@ -130,12 +139,14 @@ public class Utils {
                     }
                 }
 
+                System.out.println("at 2.5");
                 // test if normal minion results are a JSONArray which indicates
                 // failure
                 // detect errors like
                 // "return":[{"data":{"minionname":["Rendering SLS...
                 // failed"]}}]
                 if (possibleMinion.has("data")) {
+                    System.out.println("at 2.6");
                     JSONObject minionData = possibleMinion.optJSONObject("data");
                     if (minionData != null) {
                         for (Object name : minionData.names()) {
@@ -151,6 +162,7 @@ public class Utils {
                     }
                 }
 
+                System.out.println("at 2.7");
                 // iterate through subkeys and values to detect failures
                 result = validateInnerJsonObject((JSONObject) o);
                 if (!result) {
@@ -162,6 +174,7 @@ public class Utils {
     }
 
     private static boolean validateInnerJsonObject(JSONObject minion) {
+        System.out.println("inside inner json");
         final String RETCODE_FIELD_NAME = "retcode";
         boolean result = true;
 
@@ -192,6 +205,7 @@ public class Utils {
                         break;
                     }
                 }
+                System.out.println("at 4");
 
                 result = validateInnerJsonObject(jsonObject);
                 if (!result) {

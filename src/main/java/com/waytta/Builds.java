@@ -1,6 +1,10 @@
 package com.waytta;
 
 import java.io.IOException;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectOutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ObjectInputStream;
 import java.util.Iterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -113,11 +117,12 @@ public class Builds {
         return isInteger;
     }
 
-    public static int returnedMinions(JSONArray saltReturn) {
+    public static int returnedMinions(JSONArray saltInput) {
         int numMinionsDone = 0;
         JSONObject resultObject = new JSONObject();
+        JSONArray saltArray = (JSONArray)deepClone(saltInput);
 
-        resultObject = saltReturn.getJSONObject(0).getJSONObject("Result");
+        resultObject = saltArray.getJSONObject(0).getJSONObject("Result");
         // Check Result for number of responses
         Iterator<?> rMinionKeys = resultObject.keys();
         while( rMinionKeys.hasNext() ) {
@@ -129,17 +134,18 @@ public class Builds {
         return numMinionsDone;
     }
 
-    public static JSONArray returnData(JSONObject saltReturn, String netapi) {
-        JSONArray returnArray = new JSONArray();
+    public static JSONArray returnData(JSONObject saltInput, String netapi) {
+        JSONArray apiArray = new JSONArray();
+        JSONObject saltReturn = (JSONObject)deepClone(saltInput);
 
         if (netapi.contains("TornadoServer")) {
             // Tornado is keyed with return
-            returnArray = saltReturn.getJSONArray("return");
+            apiArray = saltReturn.getJSONArray("return");
         } else {
             // cherrypy is keyed with info
-            returnArray = saltReturn.getJSONArray("info");
+            apiArray = saltReturn.getJSONArray("info");
         }
-        return returnArray;
+        return apiArray;
     }
 
     public static String getBlockingBuildJid(Launcher launcher, String myservername,
@@ -149,8 +155,8 @@ public class Builds {
         // Send request to /minion url. This will give back a jid which we
         // will need to poll and lookup for completion
         JSONObject httpResponse = launcher.getChannel().call(new HttpCallable(myservername + "/minions", saltFunc, token));
-        JSONArray returnArray = httpResponse.getJSONArray("return");
-        for (Object o : returnArray) {
+        JSONArray jidArray = httpResponse.getJSONArray("return");
+        for (Object o : jidArray) {
             JSONObject line = (JSONObject) o;
             if (line.isEmpty() ) {
                 throw new SaltException("Missing JID: No minions matched target");
@@ -160,6 +166,21 @@ public class Builds {
         // Print out success
         listener.getLogger().println("Running jid: " + jid);
         return jid;
+    }
+    
+    public static Object deepClone(Object object) {
+        try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ObjectOutputStream oos = new ObjectOutputStream(baos);
+            oos.writeObject(object);
+            ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
+            ObjectInputStream ois = new ObjectInputStream(bais);
+            return ois.readObject();
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public static JSONArray checkBlockingBuild(Launcher launcher, String myservername, String token,
@@ -205,9 +226,11 @@ public class Builds {
                 throw new InterruptedException();
             }
             httpResponse = launcher.getChannel().call(new HttpCallable(myservername + "/jobs/" + jid, null, token));
+            System.out.println("setting httpArray from inside waiting for minions loop");
             httpArray = returnData(httpResponse, netapi);
+            System.out.println("querying minions done");
             numMinionsDone = returnedMinions(httpArray);
-
+            
             // if minionTimeout is negative, still walkthrough the timeout process, but do not fail build
             boolean timeoutFail = true;
             if ( minionTimeout < 0) {
@@ -216,6 +239,7 @@ public class Builds {
             }
 
             if (numMinionsDone > 0 && numMinionsDone < numMinions) {
+                System.out.println("waiting for some minions");
                 // Some minions returned, but not all
                 // Give them minionTimeout to all return or fail build
                 try {
@@ -264,13 +288,22 @@ public class Builds {
                         throw new SaltException(httpArray.getJSONObject(0).getJSONObject("Result").toString());
                     }
                     returnArray.clear();
-                    returnArray.add(httpArray.getJSONObject(0).getJSONObject("Result"));
+                    JSONObject returnObject = httpArray.getJSONObject(0).getJSONObject("Result");
+                    returnArray.add(returnObject);
                     return returnArray;
                 }
             }
         }
         returnArray.clear();
-        returnArray.add(httpArray.getJSONObject(0).getJSONObject("Result"));
-        return returnArray;
+        JSONObject returnObject = new JSONObject();
+        System.out.println("Getting result");
+        returnObject = (JSONObject)deepClone(httpArray.getJSONObject(0).getJSONObject("Result"));
+        System.out.println("Adding to return");
+        System.out.println("Adding " + returnObject.toString());
+        JSONArray testArray = new JSONArray();
+        testArray.add(returnObject);
+        System.out.println("At 2");
+        System.out.println("Returning: " + testArray.toString());
+        return testArray;
     }
 }

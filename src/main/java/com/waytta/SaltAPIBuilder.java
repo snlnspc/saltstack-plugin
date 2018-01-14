@@ -260,23 +260,28 @@ public class SaltAPIBuilder extends Builder implements SimpleBuildStep, Serializ
         try {
             String jid = getJID(launcher, myservername, token, saltFunc, listener);
             returnArray = performRequest(launcher, build, token, myservername, saltFunc, listener, netapi, jid);
+            System.out.println("Result of perform request: " + returnArray.toString());
         } catch (SaltException e) {
             throw new RuntimeException(e);
         }
-        LOGGER.log(Level.FINE, "Received response: " + returnArray);
+        LOGGER.log(Level.FINE, "Received response: " + returnArray.toString());
 
         // Save saltapi output to env if requested
         if (saveEnvVar) {
+            System.out.println("Writing env");
             build.addAction(new PublishEnvVarAction("SALTBUILDOUTPUT", returnArray.toString()));
         }
 
         if (saveFile) {
+            System.out.println("saving file");
             Utils.writeFile(returnArray.toString(), workspace);
         }
 
         // Check for error and print out results
+        System.out.println("Validating");
         boolean validFunctionExecution = Utils.validateFunctionCall(returnArray);
 
+        System.out.println("Done validating");
         if (!validFunctionExecution) {
             listener.error("One or more minion did not return code 0\n");
             jobSuccess = false;
@@ -339,6 +344,7 @@ public class SaltAPIBuilder extends Builder implements SimpleBuildStep, Serializ
             int minionTimeout = getMinionTimeout();
             // poll /minion for response
             returnArray = Builds.checkBlockingBuild(launcher, serverName, token, saltFunc, listener, jobPollTime, minionTimeout, netapi, jid);
+            System.out.println("RECIEVED RETURN: " + returnArray.toString());
         } else {
             // Just send a salt request to /. Don't wait for reply
             httpResponse = launcher.getChannel().call(new HttpCallable(serverName, saltFunc, token));
