@@ -343,7 +343,7 @@ public class SaltAPIStep extends Step implements Serializable {
             boolean validFunctionExecution = true;
             if (!skipValidation) {
                 // Check for error and print out results
-                boolean validFunctionExecution = Utils.validateFunctionCall(returnArray);
+                validFunctionExecution = Utils.validateFunctionCall(returnArray);
             } else {
                 LOGGER.log(Level.INFO, "Skipping validation of salt return");
             }
