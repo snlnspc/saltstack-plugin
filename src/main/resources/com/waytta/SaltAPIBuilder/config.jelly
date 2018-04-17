@@ -13,6 +13,7 @@
     <select name="authtype">
       <f:option value="pam" selected="${instance.authtype == 'pam'}">pam</f:option>
       <f:option value="ldap" selected="${instance.authtype == 'ldap'}">ldap</f:option>
+      <f:option value="file" selected="${instance.authtype == 'file'}">file</f:option>
     </select>
   </f:entry>
   <f:validateButton
